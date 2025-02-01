@@ -17,13 +17,40 @@ const db = mysql.createConnection({
     database: "Registration",
 });
 
-db.connect((err) => {
+db.connect((err, res) => {
     if (err) {
         console.error("Error connecting to the database:", err);
     } else {
         console.log("Connected to the database.");
+         
     }
 });
+
+app.get('/signup', (req, res) => {
+
+    const userId = req.query.userId;
+
+    if(!userId){
+        return res.status(400).json({message: "userId is not provided by database"});
+    }
+    db.query("SELECT * FROM signup WHERE ID = ? ",[userId], (err, results) => {
+        if(err) {
+            console.error("Database error during executing query:", err)
+            return res.status(500).json({message: "Error fetching the data from the database"})
+        }
+        else{
+            if(results.length === 0){
+                return res.status(404).json({message: "user not found"});
+
+            }
+
+                console.log("server fetched data from database is:", results[0]);
+
+                res.status(200).json(results[0]);
+            }
+            
+        });
+})
 
 app.post('/signup', (req, res) => {
     const { name, email, password } = req.body;
@@ -35,6 +62,8 @@ app.post('/signup', (req, res) => {
 
             // Log the data received from the client
             console.log("Data received from client:", { name, email, password });
+
+            
 
             // To check if username or email already exists
              db.query("SELECT * FROM signup WHERE Name = ? OR Email = ?", [name, email], (err, results) => {
@@ -57,7 +86,7 @@ app.post('/signup', (req, res) => {
             })
 
             // If no duplicate user exists, insert the new data into the database
-            db.query(
+            db.query(   
                 "INSERT INTO signup (Name, Email, Password) VALUES (?, ?, ?)",
                 [name, email, password],
                 (err, data) => {
@@ -66,15 +95,28 @@ app.post('/signup', (req, res) => {
                         return res.status(500).json({ message: "Error during registration. Please try again." });
                     } else {
                         // Log the query result (metadata)
-                        console.log("Query result (metadata):");
+                        console.log("Query result (metadata):", data);
 
                         // Log the data that was inserted into the database
                         console.log("Data inserted into database:", { name, email, password });
 
-                        res.status(200).json({ message: "Registration Successful" });
+                        db.query("SELECT * FROM signup WHERE Id = ?", [data.insertId], (err, newUser) => {
+                            if(err){
+                                console.error("database error during query execution")
+            
+                                return res.status(500).json({message: "Error while fetching new user data"});
+                            }
+                            else{
+                                res.status(200).json({message: "Registration Successfull", user: newUser[0]})
+                            }
+                        })
+
+                        
                     }
                 }
             );
+
+            
         });
 
 
